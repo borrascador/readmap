@@ -18,29 +18,35 @@ def main():
             else:
                 pixel_dict[pixel] = []
     
+    top_pixels = get_stats(pixel_dict, [100000])
+
+    out = Image.new(im.mode, im.size)
+    pixels_out = out.load()
+    for pixel in top_pixels.keys():
+        for coord in top_pixels[pixel]:
+            pixels_out[coord] = pixel
+
+    out.show()
+
+def get_stats(pixel_dict, threshold_array):
     print("Found {} unique pixel color values".format(len(pixel_dict.keys())))
-    
-    over_100_counter = 0
-    for pixel in pixel_dict:
-        if len(pixel_dict[pixel]) > 100:
-            over_100_counter += 1
-    print("Found {} pixels with over 100 occurences".format(over_100_counter))
 
-    over_1000_counter = 0
-    for pixel in pixel_dict:
-        if len(pixel_dict[pixel]) > 1000:
-            over_1000_counter += 1
-    print("Found {} pixels with over 1000 occurences".format(over_1000_counter))
+    threshold_array.sort()
+    threshold_dict = { x: {} for x in threshold_array }
 
-    top_pixels = {}
-    over_10000_counter = 0
-    for pixel in pixel_dict:
-        if len(pixel_dict[pixel]) > 10000:
-            over_10000_counter += 1
-            top_pixels[pixel] = len(pixel_dict[pixel])
-    print("Found {} pixels with over 10000 occurences".format(over_10000_counter))
-    print("\n Here is a list of the pixels with over 10000 occurences:")
-    print(top_pixels)
+    for threshold in threshold_array:
+        for pixel in pixel_dict:
+            if len(pixel_dict[pixel]) > threshold:
+                threshold_dict[threshold][pixel] = pixel_dict[pixel]
+        count = len(threshold_dict[threshold].keys())
+        print("Found {} pixels with over {} occurences".format(count, threshold))
+
+    top_threshold = threshold_array[-1]
+    print("Here is a list of the pixels with over {} occurences:".format(top_threshold))
+    top_pixels = threshold_dict[top_threshold]
+    print({ x: len(top_pixels[x]) for x in top_pixels})
+
+    return top_pixels
 
 if (len(sys.argv) > 0):
     main()
