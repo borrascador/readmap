@@ -1,52 +1,83 @@
 import sys
+import statistics
 import json
 from PIL import Image
 
 def main():
-    im = Image.open(sys.argv[1])
-    pix = im.load()
-    [width, height] = im.size
+    source = sys.argv[1]
+    threshold = int(sys.argv[2], 10)
+    color_count = 2
+
+    src = Image.open(source)
+    src_pixels = src.load()
+    [width, height] = src.size
 
     print("Scanning {} pixels from input image".format(width*height))
 
     pixel_dict = {}
     for x in range(width):
         for y in range(height):
-            pixel = pix[x,y]
+            pixel = src_pixels[x,y]
             if pixel in pixel_dict:
                 pixel_dict[pixel].append((x,y))
             else:
                 pixel_dict[pixel] = []
     
-    top_pixels = get_stats(pixel_dict, [100000])
+    unique_input_colors = len(pixel_dict.keys())
 
-    out = Image.new(im.mode, im.size)
-    pixels_out = out.load()
-    for pixel in top_pixels.keys():
-        for coord in top_pixels[pixel]:
-            pixels_out[coord] = pixel
+    print("Found {} unique pixel color values".format(unique_input_colors))
+    if len(pixel_dict.keys()) <= color_count:
+        print("Source image is already in {} colors or less.".format(color_count))
+        return
+
+    # Use number of desired regions to expand
+    top_pixels = get_top_n_pixels(pixel_dict, color_count)
+    combined_occurences = sum([len(pixel_dict[top_pixels[x]]) for x in range(color_count)])
+    share = combined_occurences / (width * height)
+
+    print("Found {} pixels with {} combined occurences ({} share)".format(color_count, combined_occurences, share))
+    print(top_pixels)
+
+    out = Image.new(src.mode, src.size)
+    out_pixels = out.load()
+    out_pixel_dict = {}
+    for x in range(width):
+        for y in range(height):
+            blended_pixel = blend2colors(top_pixels[0], top_pixels[1], src_pixels[x,y], threshold)
+            out_pixels[x,y] = blended_pixel
+            if blended_pixel in out_pixel_dict:
+                out_pixel_dict[blended_pixel].append((x,y))
+            else:
+                out_pixel_dict[blended_pixel] = [(x,y)]
+            
+    unique_output_colors = len(out_pixel_dict.keys())
+    print("{} unique output colors remaining from {} original colors".format(unique_output_colors, unique_input_colors))
 
     out.show()
 
-def get_stats(pixel_dict, threshold_array):
-    print("Found {} unique pixel color values".format(len(pixel_dict.keys())))
+def blend2colors(color1, color2, pixel, threshold):
+    if (pixel == color1):
+        return color1
+    if (pixel == color2):
+        return color2
+    color1diff = diff2colors(color1, pixel)
+    color2diff = diff2colors(color2, pixel)
+    if (color1diff < threshold and color1diff < color2diff):
+        return color1
+    elif (color2diff < threshold and color2diff < color1diff):
+        return color2
+    else:
+        return pixel
 
-    threshold_array.sort()
-    threshold_dict = { x: {} for x in threshold_array }
+def diff2colors(c1, c2):
+    return sum([abs(c1[x] - c2[x]) for x in range(4)])
 
-    for threshold in threshold_array:
-        for pixel in pixel_dict:
-            if len(pixel_dict[pixel]) > threshold:
-                threshold_dict[threshold][pixel] = pixel_dict[pixel]
-        count = len(threshold_dict[threshold].keys())
-        print("Found {} pixels with over {} occurences".format(count, threshold))
+def get_top_n_pixels(pixel_dict, color_count):
 
-    top_threshold = threshold_array[-1]
-    print("Here is a list of the pixels with over {} occurences:".format(top_threshold))
-    top_pixels = threshold_dict[top_threshold]
-    print({ x: len(top_pixels[x]) for x in top_pixels})
 
-    return top_pixels
+    sorted_lengths = sorted(pixel_dict, key=lambda k: len(pixel_dict[k]), reverse=True)
+
+    return sorted_lengths[:color_count]
 
 if (len(sys.argv) > 0):
     main()
