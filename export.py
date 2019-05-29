@@ -1,12 +1,16 @@
 import sys
 import statistics
 import json
+import re
 from PIL import Image
 
 def main():
     source = sys.argv[1]
     threshold = int(sys.argv[2], 10)
     color_count = 2
+    do_export = sys.argv[3].find('x') > -1
+    do_display = sys.argv[3].find('d') > -1
+    output_file = len(sys.argv) > 4 and sys.argv[4] if do_export else ""
 
     src = Image.open(source)
     src_pixels = src.load()
@@ -31,7 +35,8 @@ def main():
         return
 
     # Use number of desired regions to expand
-    top_pixels = get_top_n_pixels(pixel_dict, color_count)
+    sorted_lengths = sorted(pixel_dict, key=lambda k: len(pixel_dict[k]), reverse=True)
+    top_pixels = sorted_lengths[:color_count]
     combined_occurences = sum([len(pixel_dict[top_pixels[x]]) for x in range(color_count)])
     share = combined_occurences / (width * height)
 
@@ -53,7 +58,12 @@ def main():
     unique_output_colors = len(out_pixel_dict.keys())
     print("{} unique output colors remaining from {} original colors".format(unique_output_colors, unique_input_colors))
 
-    out.show()
+    if do_display:
+        out.show()
+
+    if do_export and output_file:
+        out.save(output_file)
+        print("Exported as {}".format(output_file))
 
 def blend2colors(color1, color2, pixel, threshold):
     if (pixel == color1):
@@ -71,13 +81,6 @@ def blend2colors(color1, color2, pixel, threshold):
 
 def diff2colors(c1, c2):
     return sum([abs(c1[x] - c2[x]) for x in range(4)])
-
-def get_top_n_pixels(pixel_dict, color_count):
-
-
-    sorted_lengths = sorted(pixel_dict, key=lambda k: len(pixel_dict[k]), reverse=True)
-
-    return sorted_lengths[:color_count]
 
 if (len(sys.argv) > 0):
     main()
