@@ -5,9 +5,12 @@ import re
 from PIL import Image
 
 def main():
+    # edit this constant to set the number of colors for simplification
+    # todo: add a command line option to override default (2)
+    color_count = 2
+
     source = sys.argv[1]
     threshold = int(sys.argv[2], 10)
-    color_count = 2
     do_export = sys.argv[3].find('x') > -1
     do_display = sys.argv[3].find('d') > -1
     output_file = len(sys.argv) > 4 and sys.argv[4] if do_export else ""
@@ -48,12 +51,12 @@ def main():
     out_pixel_dict = {}
     for x in range(width):
         for y in range(height):
-            blended_pixel = blend2colors(top_pixels[0], top_pixels[1], src_pixels[x,y], threshold)
-            out_pixels[x,y] = blended_pixel
-            if blended_pixel in out_pixel_dict:
-                out_pixel_dict[blended_pixel].append((x,y))
+            nearest_pixel = get_nearest_color(top_pixels, src_pixels[x,y], threshold)
+            out_pixels[x,y] = nearest_pixel
+            if nearest_pixel in out_pixel_dict:
+                out_pixel_dict[nearest_pixel].append((x,y))
             else:
-                out_pixel_dict[blended_pixel] = [(x,y)]
+                out_pixel_dict[nearest_pixel] = [(x,y)]
             
     unique_output_colors = len(out_pixel_dict.keys())
     print("{} unique output colors remaining from {} original colors".format(unique_output_colors, unique_input_colors))
@@ -65,17 +68,14 @@ def main():
         out.save(output_file)
         print("Exported as {}".format(output_file))
 
-def blend2colors(color1, color2, pixel, threshold):
-    if (pixel == color1):
-        return color1
-    if (pixel == color2):
-        return color2
-    color1diff = diff2colors(color1, pixel)
-    color2diff = diff2colors(color2, pixel)
-    if (color1diff < threshold and color1diff < color2diff):
-        return color1
-    elif (color2diff < threshold and color2diff < color1diff):
-        return color2
+def get_nearest_color(colors, pixel, threshold):
+    for color in colors:
+        if (pixel == color):
+            return color
+    colors_by_diff = {diff2colors(x, pixel): x for x in colors}
+    lowest_diff = min(colors_by_diff.keys())
+    if lowest_diff < threshold:
+        return colors_by_diff[lowest_diff]
     else:
         return pixel
 
